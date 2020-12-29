@@ -68,7 +68,6 @@ class Tello:
         #Loads face recognition model
         face_cascade = cv2.CascadeClassifier('easytello2\haarcascade_frontalface_default.xml')
         assert (not face_cascade.empty()), "Face Cascade failed to load"
-        print("Model Loaded")
 
         # Creating stream capture object
         cap = cv2.VideoCapture('udp://'+self.tello_ip+':11111')
@@ -79,10 +78,12 @@ class Tello:
 
             if ret:
                 #Facial recognition
-                gray = cv2.cvtColor(self.last_frame, cv2.COLOR_BGR2GRAY)
-                faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+                gray = cv2.resize(cv2.cvtColor(self.last_frame, cv2.COLOR_BGR2GRAY), (480, 360))
+
+                #Face cascade v slow, find a way of speeding up
+                faces = face_cascade.detectMultiScale(gray, 1.3, 4)
                 for (x, y, w, h) in faces:
-                    cv2.rectangle(self.last_frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+                    cv2.rectangle(self.last_frame, (x*2, y*2), ((x+w)*2, (y+h)*2), (255, 0, 0), 2)
 
                 cv2.imshow('DJI Tello', self.last_frame)
 
