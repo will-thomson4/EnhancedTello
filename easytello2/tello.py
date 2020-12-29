@@ -26,6 +26,7 @@ class Tello:
         self.receive_thread.start()
 
         # easyTello runtime options
+        self.face_rec = False
         self.stream_state = False
         self.last_frame = None
         self.MAX_TIME_OUT = 15.0
@@ -78,12 +79,11 @@ class Tello:
 
             if ret:
                 #Facial recognition
-                gray = cv2.resize(cv2.cvtColor(self.last_frame, cv2.COLOR_BGR2GRAY), (480, 360))
-
-                #Face cascade v slow, find a way of speeding up
-                faces = face_cascade.detectMultiScale(gray, 1.3, 4)
-                for (x, y, w, h) in faces:
-                    cv2.rectangle(self.last_frame, (x*2, y*2), ((x+w)*2, (y+h)*2), (255, 0, 0), 2)
+                if self.face_rec:
+                    gray = cv2.resize(cv2.cvtColor(self.last_frame, cv2.COLOR_BGR2GRAY), (480, 360))
+                    faces = face_cascade.detectMultiScale(gray, 1.3, 4)
+                    for (x, y, w, h) in faces:
+                        cv2.rectangle(self.last_frame, (x*2, y*2), ((x+w)*2, (y+h)*2), (255, 0, 0), 2)
 
                 cv2.imshow('DJI Tello', self.last_frame)
 
