@@ -3,6 +3,8 @@ import threading
 import time
 import cv2
 from easytello2.stats import Stats
+import numpy as np
+import queue
 
 class Tello:
     def __init__(self, tello_ip: str='192.168.10.1', debug: bool=True):
@@ -21,6 +23,7 @@ class Tello:
         self.log = []
 
         # Intializing response thread
+        self.q = queue.Queue()
         self.receive_thread = threading.Thread(target=self._receive_thread)
         self.receive_thread.daemon = True
         self.receive_thread.start()
@@ -72,20 +75,48 @@ class Tello:
 
         # Creating stream capture object
         cap = cv2.VideoCapture('udp://'+self.tello_ip+':11111')
+        out = cv2.VideoWriter('testvid.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 30, (960, 720))
 
         # Runs while 'stream_state' is True
         while self.stream_state:
             ret, self.last_frame = cap.read()
+            gray = cv2.cvtColor(self.last_frame, cv2.COLOR_BGR2GRAY)
+
 
             if ret:
                 #Facial recognition
                 if self.face_rec:
-                    gray = cv2.resize(cv2.cvtColor(self.last_frame, cv2.COLOR_BGR2GRAY), (480, 360))
-                    faces = face_cascade.detectMultiScale(gray, 1.3, 4)
+                    gray_small = cv2.resize(gray, (240, 180))
+                    faces = face_cascade.detectMultiScale(gray_small, 1.1, 4)
                     for (x, y, w, h) in faces:
-                        cv2.rectangle(self.last_frame, (x*2, y*2), ((x+w)*2, (y+h)*2), (255, 0, 0), 2)
+                        cv2.rectangle(self.last_frame, (x*4, y*4), ((x+w)*4, (y+h)*4), (255, 0, 0), 2)
+
+
+                prev_gray = cv2.resize(gray, (0,0), fx = 0.125, fy = 0.125)
+                prev_points = cv2.goodFeaturesToTrack(prev_gray, maxCorners = 200, qualityLevel = 0.01, minDistance = 30, blockSize = 3)
+
+                if not self.q.empty():
+                    curr = self.q.get()
+
+                    cur_gray = cv2.resize(cv2.cvtColor(curr, cv2.COLOR_BGR2GRAY), (0,0), fx = 0.125, fy = 0.125)
+                    curr_points, status, err = cv2.calcOpticalFlowPyrLK(prev_gray, cur_gray, prev_points, None)
+
+                    assert prev_points.shape == curr_points.shape
+
+                    idx = np.where(status==1)[0]
+                    prev_points = prev_points[idx]
+                    curr_points = curr_points[idx]
+                    [transform, inlierPoints] = cv2.estimateAffinePartial2D(prev_points, curr_points)
+                    t = np.matrix.round(transform, 4)
+                    print(t)
+
+                else:
+                    pass
+
+                self.q.put(self.last_frame)
 
                 cv2.imshow('DJI Tello', self.last_frame)
+                #out.write(self.last_frame)
 
             # Video Stream is closed if escape key is pressed
             k = cv2.waitKey(1) & 0xFF
