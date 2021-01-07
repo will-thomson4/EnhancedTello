@@ -5,11 +5,12 @@ import cv2
 from easytello2.stats import Stats
 import numpy as np
 import queue
+from easytello2.facial_rec import Facial_Rec
+from easytello2.stabiliser import Stabiliser
 
 class Tello:
     def __init__(self, tello_ip: str='192.168.10.1', debug: bool=True):
         # Opening local UDP port on 8889 for Tello communication
-        print('hi')
         self.local_ip = ''
         self.local_port = 8889
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -70,67 +71,58 @@ class Tello:
             except socket.error as exc:
                 print('Socket error: {}'.format(exc))
 
-    def _facial_rec(self, img, model):
-        resize_factor = 4
-        resized = cv2.resize(img, (0,0), fx = 1/resize_factor, fy = 1/resize_factor)
-        faces = model.detectMultiScale(resized, 1.3, 4)
-        for (x, y, w, h) in faces:
-            cv2.rectangle(self.last_frame, (x*resize_factor, y*resize_factor), ((x+w)*resize_factor, (y+h)*resize_factor), (255, 0, 0), 2)
-
-    def _facial_rec_model(self):
-        face_cascade = cv2.CascadeClassifier('easytello2\haarcascade_frontalface_default.xml')
-        assert (not face_cascade.empty()), "Face Cascade failed to load"
-        return face_cascade
-
     def _video_thread(self):
         # Creating stream capture object
         cap = cv2.VideoCapture('udp://'+self.tello_ip+':11111')
 
-        #Loading facial rec model
-        face_cascade = self._facial_rec_model()
+        #Creating Facial Rec object
+        faces = Facial_Rec()
 
-        count = 0
+        stable = Stabiliser()
+        #count = 0
+
 
         # Runs while 'stream_state' is True
         while self.stream_state:
             ret, self.last_frame = cap.read()
 
             if ret:
-                #Finding points in current frame
-                gray = cv2.cvtColor(self.last_frame, cv2.COLOR_BGR2GRAY)
-                curr_gray = cv2.resize(gray, (0,0), fx = 0.125, fy = 0.125)
-                curr_points = cv2.goodFeaturesToTrack(curr_gray, maxCorners = 200, qualityLevel = 0.01, minDistance = 30, blockSize = 3)
-
-                #Finding points in previous frame
-                if not self.q.empty():
-                    prev = self.q.get()
-                    prev_gray = cv2.resize(cv2.cvtColor(prev, cv2.COLOR_BGR2GRAY), (0,0), fx = 0.125, fy = 0.125)
-                    prev_points, status, err = cv2.calcOpticalFlowPyrLK(curr_gray, prev_gray, curr_points, None)
-
-                #Sanity check
-                    assert prev_points.shape == curr_points.shape
-
-                #Creating affine matrix between both sets of points
-                    idx = np.where(status==1)[0]
-                    prev_points = prev_points[idx]
-                    curr_points = curr_points[idx]
-                    [transform, inlierPoints] = cv2.estimateAffinePartial2D(curr_points, prev_points)
-
-                    if sum(transform[0]) > 1:
-                        count += 1
-                    else:
-                        count -= 1
-                    print(count)
+                # #Finding points in current frame
+                # gray = cv2.cvtColor(self.last_frame, cv2.COLOR_BGR2GRAY)
+                # curr_gray = cv2.resize(gray, (0,0), fx = 0.125, fy = 0.125)
+                # curr_points = cv2.goodFeaturesToTrack(curr_gray, maxCorners = 200, qualityLevel = 0.01, minDistance = 30, blockSize = 3)
+                #
+                # #Finding points in previous frame
+                # if not self.q.empty():
+                #     prev = self.q.get()
+                #     prev_gray = cv2.resize(cv2.cvtColor(prev, cv2.COLOR_BGR2GRAY), (0,0), fx = 0.125, fy = 0.125)
+                #     prev_points, status, err = cv2.calcOpticalFlowPyrLK(curr_gray, prev_gray, curr_points, None)
+                #
+                # #Sanity check
+                #     assert prev_points.shape == curr_points.shape
+                #
+                # #Creating affine matrix between both sets of points
+                #     idx = np.where(status==1)[0]
+                #     prev_points = prev_points[idx]
+                #     curr_points = curr_points[idx]
+                #     [transform, inlierPoints] = cv2.estimateAffinePartial2D(curr_points, prev_points)
+                #
+                #     if sum(transform[0]) > 1:
+                #         count += 1
+                #     else:
+                #         count -= 1
+                #     print(count)
+                stable.stabilise(self.last_frame)
 
                 #Running facial rec if enabled
                 if self.face_rec:
-                    self._facial_rec(gray, face_cascade)
+                    faces.scan_faces(gray, self.last_frame)
 
                 else:
                     pass
 
                 #Making current frame into previous frame
-                self.q.put(self.last_frame)
+                #self.q.put(self.last_frame)
 
                 cv2.imshow('DJI Tello', self.last_frame)
 
