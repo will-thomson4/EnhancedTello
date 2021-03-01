@@ -37,6 +37,8 @@ class Tello:
         self.last_frame = None
         self.MAX_TIME_OUT = 15.0
         self.debug = debug
+        self.attitude = False
+
         # Setting Tello to command mode
         self.command()
 
@@ -78,41 +80,18 @@ class Tello:
         #Creating Facial Rec object
         faces = Facial_Rec()
 
+        #Creating Stabiliser object
         stable = Stabiliser()
-        #count = 0
-
 
         # Runs while 'stream_state' is True
         while self.stream_state:
             ret, self.last_frame = cap.read()
 
             if ret:
-                # #Finding points in current frame
-                # gray = cv2.cvtColor(self.last_frame, cv2.COLOR_BGR2GRAY)
-                # curr_gray = cv2.resize(gray, (0,0), fx = 0.125, fy = 0.125)
-                # curr_points = cv2.goodFeaturesToTrack(curr_gray, maxCorners = 200, qualityLevel = 0.01, minDistance = 30, blockSize = 3)
-                #
-                # #Finding points in previous frame
-                # if not self.q.empty():
-                #     prev = self.q.get()
-                #     prev_gray = cv2.resize(cv2.cvtColor(prev, cv2.COLOR_BGR2GRAY), (0,0), fx = 0.125, fy = 0.125)
-                #     prev_points, status, err = cv2.calcOpticalFlowPyrLK(curr_gray, prev_gray, curr_points, None)
-                #
-                # #Sanity check
-                #     assert prev_points.shape == curr_points.shape
-                #
-                # #Creating affine matrix between both sets of points
-                #     idx = np.where(status==1)[0]
-                #     prev_points = prev_points[idx]
-                #     curr_points = curr_points[idx]
-                #     [transform, inlierPoints] = cv2.estimateAffinePartial2D(curr_points, prev_points)
-                #
-                #     if sum(transform[0]) > 1:
-                #         count += 1
-                #     else:
-                #         count -= 1
-                #     print(count)
-                stable.stabilise(self.last_frame)
+                #Running stabilisation if in attitude mode
+                if self.attitude:
+                    stable.stabilise(self.last_frame)
+
 
                 #Running facial rec if enabled
                 if self.face_rec:
@@ -120,9 +99,6 @@ class Tello:
 
                 else:
                     pass
-
-                #Making current frame into previous frame
-                #self.q.put(self.last_frame)
 
                 cv2.imshow('DJI Tello', self.last_frame)
 
@@ -140,7 +116,19 @@ class Tello:
         # Log entry for delay added
         self.log.append(Stats('wait', len(self.log)))
         # Delay is activated
-        time.sleep(delay)
+        # if self.get_attitude()[2] > 0:
+        #     self.attitude = True
+        # else:
+        #     pass
+        #
+        # time.sleep(delay/2)
+        #
+        # if self.get_attitude()[2] > 0:
+        #     self.attitude = True
+        # else:
+        #     pass
+
+        time.sleep(delay/2)
 
     def get_log(self):
         return self.log
