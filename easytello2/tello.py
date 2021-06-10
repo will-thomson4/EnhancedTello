@@ -5,8 +5,8 @@ import cv2
 from easytello2.stats import Stats
 import numpy as np
 import queue
-from easytello2.facial_rec import Facial_Rec
-from easytello2.stabiliser import Stabiliser
+from easytello2.Enhanced.FacialRecognition.facial_rec import Facial_Rec
+from easytello2.Stabiliser.stabiliser import Stabiliser
 
 class Tello:
     def __init__(self, tello_ip: str='192.168.10.1', debug: bool=True):
@@ -23,21 +23,26 @@ class Tello:
         self.tello_address = (self.tello_ip, self.tello_port)
         self.log = []
 
-        #Creating frame queue
-        self.q = queue.Queue()
-
         # Intializing response thread
         self.receive_thread = threading.Thread(target=self._receive_thread)
         self.receive_thread.daemon = True
         self.receive_thread.start()
 
         # easyTello runtime options
-        self.face_rec = False
         self.stream_state = False
         self.last_frame = None
         self.MAX_TIME_OUT = 15.0
         self.debug = debug
         self.attitude = False
+
+        #Stabilisation Feature
+        #Creating stabiliser and frame queue
+        self.stabiliser = Stabiliser()
+        self.q = queue.Queue()
+
+        #Facial Recognition Feature
+        #Default facial rec to false
+        self.face_rec = False
 
         # Setting Tello to command mode
         self.command()
@@ -73,33 +78,31 @@ class Tello:
             except socket.error as exc:
                 print('Socket error: {}'.format(exc))
 
+
+
     def _video_thread(self):
         # Creating stream capture object
         cap = cv2.VideoCapture('udp://'+self.tello_ip+':11111')
+        out = cv2.VideoWriter('testvid.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 30, (960, 720))
 
         #Creating Facial Rec object
         faces = Facial_Rec()
 
-        #Creating Stabiliser object
-        stable = Stabiliser()
-
-        # Runs while 'stream_state' is True
+        #Runs while 'stream_state' is True
         while self.stream_state:
             ret, self.last_frame = cap.read()
 
             if ret:
-                #Running stabilisation if in attitude mode
-                if self.attitude:
-                    stable.stabilise(self.last_frame)
-
+                self.stabiliser.stabilise(self.last_frame)
 
                 #Running facial rec if enabled
                 if self.face_rec:
-                    faces.scan_faces(gray, self.last_frame)
+                    faces.scan_faces(self.last_frame, self.last_frame)
 
                 else:
                     pass
 
+                out.write(self.last_frame)
                 cv2.imshow('DJI Tello', self.last_frame)
 
             # Video Stream is closed if escape key is pressed
@@ -109,26 +112,29 @@ class Tello:
         cap.release()
         cv2.destroyAllWindows()
 
+    def hover(self, delay: float):
+        # Displaying wait message (if 'debug' is True)
+        if self.debug is True:
+            print('Hovering {} seconds...'.format(delay))
+        # Log entry for delay added
+        self.log.append(Stats('wait', len(self.log)))
+        for i in range(0, delay):
+            if self.stabiliser.movingRight == True:
+                self.left(20)
+            if self.stabiliser.movingLeft == True:
+                self.right(20)
+            time.sleep(1)
+
+
+
+
     def wait(self, delay: float):
         # Displaying wait message (if 'debug' is True)
         if self.debug is True:
             print('Waiting {} seconds...'.format(delay))
         # Log entry for delay added
         self.log.append(Stats('wait', len(self.log)))
-        # Delay is activated
-        # if self.get_attitude()[2] > 0:
-        #     self.attitude = True
-        # else:
-        #     pass
-        #
-        # time.sleep(delay/2)
-        #
-        # if self.get_attitude()[2] > 0:
-        #     self.attitude = True
-        # else:
-        #     pass
-
-        time.sleep(delay/2)
+        time.sleep(delay)
 
     def get_log(self):
         return self.log

@@ -2,14 +2,13 @@ import cv2
 import numpy as np
 import queue
 
-
 class Stabiliser:
     def __init__(self):
+        #Frame queue
         self.q = queue.Queue()
         self.frame_count = 0
         self.movingLeft = False
         self.movingRight = False
-
 
     def stabilise(self, curr):
         #Formatting image and finding points in current frame
@@ -37,12 +36,12 @@ class Stabiliser:
             else:
                 self.frame_count -= 1
 
-            if self.frame_count > 30:
-                self.movingLeft = True
-                self.movingRight = False
-            if self.frame_count < -30:
-                self.movingRight = True
+            if self.frame_count > 60:
                 self.movingLeft = False
-
+                self.movingRight = True
+            if self.frame_count < -60:
+                self.movingRight = False
+                self.movingLeft = True
+            print(self.frame_count)
 
         self.q.put(curr)
