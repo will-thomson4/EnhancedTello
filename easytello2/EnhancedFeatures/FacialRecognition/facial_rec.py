@@ -2,7 +2,7 @@ import cv2
 
 class Facial_Rec:
     def __init__(self):
-        self.model = cv2.CascadeClassifier('easytello2\haarcascade_frontalface_default.xml')
+        self.model = cv2.CascadeClassifier('easytello2\EnhancedFeatures\FacialRecognition\haarcascade_frontalface_default.xml')
         self.resize_factor = 4
 
     def scan_faces(self, input_img, output_img):

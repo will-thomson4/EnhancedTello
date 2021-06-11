@@ -5,8 +5,8 @@ import cv2
 from easytello2.stats import Stats
 import numpy as np
 import queue
-from easytello2.Enhanced.FacialRecognition.facial_rec import Facial_Rec
-from easytello2.Stabiliser.stabiliser import Stabiliser
+from easytello2.EnhancedFeatures.FacialRecognition.facial_rec import Facial_Rec
+from easytello2.EnhancedFeatures.Stabiliser.stabiliser import Stabiliser
 
 class Tello:
     def __init__(self, tello_ip: str='192.168.10.1', debug: bool=True):
@@ -83,7 +83,9 @@ class Tello:
     def _video_thread(self):
         # Creating stream capture object
         cap = cv2.VideoCapture('udp://'+self.tello_ip+':11111')
-        out = cv2.VideoWriter('testvid.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 30, (960, 720))
+
+        #Enable thsi for recording
+        #out = cv2.VideoWriter('stabiliserTestFly.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 30, (960, 720))
 
         #Creating Facial Rec object
         faces = Facial_Rec()
@@ -93,6 +95,7 @@ class Tello:
             ret, self.last_frame = cap.read()
 
             if ret:
+                #Run stabilisation calculations
                 self.stabiliser.stabilise(self.last_frame)
 
                 #Running facial rec if enabled
@@ -102,7 +105,10 @@ class Tello:
                 else:
                     pass
 
-                out.write(self.last_frame)
+                #Enable this for recording
+                #out.write(self.last_frame)
+
+                #Show video feed
                 cv2.imshow('DJI Tello', self.last_frame)
 
             # Video Stream is closed if escape key is pressed
@@ -112,6 +118,8 @@ class Tello:
         cap.release()
         cv2.destroyAllWindows()
 
+
+    #This is a new function, similar to wait() but with stabilisation enabled
     def hover(self, delay: float):
         # Displaying wait message (if 'debug' is True)
         if self.debug is True:

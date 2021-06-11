@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import queue
 
-cap = cv2.VideoCapture('testvid.avi')
+cap = cv2.VideoCapture('stabiliserTest.avi')
 q = queue.Queue()
 frame_count = 0
 
