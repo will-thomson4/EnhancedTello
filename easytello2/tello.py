@@ -102,7 +102,7 @@ class Tello:
 
                 #Running facial rec if enabled
                 if self.face_rec:
-                    faces.scan_faces(self.last_frame, self.last_frame)
+                    faces.scan_faces(self.last_frame)
 
                 else:
                     pass
