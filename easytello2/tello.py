@@ -38,6 +38,7 @@ class Tello:
         #Stabilisation Feature
         #Creating stabiliser and frame queue
         self.stabiliser = Stabiliser()
+        self.stabilsierActive = False
         self.q = queue.Queue()
 
         #Facial Recognition Feature
@@ -95,8 +96,9 @@ class Tello:
             ret, self.last_frame = cap.read()
 
             if ret:
-                #Run stabilisation calculations
-                self.stabiliser.stabilise(self.last_frame)
+                #Run stabilisation calculations if option enabled
+                if self.stabilsierActive:
+                    self.stabiliser.stabilise(self.last_frame)
 
                 #Running facial rec if enabled
                 if self.face_rec:
