@@ -6,7 +6,6 @@ from easytello2.stats import Stats
 import numpy as np
 import queue
 from easytello2.EnhancedFeatures.FacialRecognition.facial_rec import Facial_Rec
-from easytello2.EnhancedFeatures.Stabiliser.stabiliser import Stabiliser
 
 class Tello:
     def __init__(self, tello_ip: str='192.168.10.1', debug: bool=True):
@@ -35,15 +34,10 @@ class Tello:
         self.debug = debug
         self.attitude = False
 
-        #Stabilisation Feature
-        #Creating stabiliser and frame queue
-        self.stabiliser = Stabiliser()
-        self.stabilsierActive = False
-        self.q = queue.Queue()
-
         #Facial Recognition Feature
         #Default facial rec to false
         self.face_rec = False
+        self.faces = Facial_Rec()
 
         # Setting Tello to command mode
         self.command()
@@ -85,30 +79,18 @@ class Tello:
         # Creating stream capture object
         cap = cv2.VideoCapture('udp://'+self.tello_ip+':11111')
 
-        #Enable thsi for recording
-        #out = cv2.VideoWriter('stabiliserTestFly.avi', cv2.VideoWriter_fourcc('M','J','P','G'), 30, (960, 720))
-
-        #Creating Facial Rec object
-        faces = Facial_Rec()
-
         #Runs while 'stream_state' is True
         while self.stream_state:
             ret, self.last_frame = cap.read()
 
             if ret:
-                #Run stabilisation calculations if option enabled
-                if self.stabilsierActive:
-                    self.stabiliser.stabilise(self.last_frame)
 
                 #Running facial rec if enabled
                 if self.face_rec:
-                    faces.scan_faces(self.last_frame)
+                    self.faces.scan_faces(self.last_frame)
 
                 else:
                     pass
-
-                #Enable this for recording
-                #out.write(self.last_frame)
 
                 #Show video feed
                 cv2.imshow('DJI Tello', self.last_frame)
@@ -119,23 +101,6 @@ class Tello:
                 break
         cap.release()
         cv2.destroyAllWindows()
-
-
-    #This is a new function, similar to wait() but with stabilisation enabled
-    def hover(self, delay: float):
-        # Displaying wait message (if 'debug' is True)
-        if self.debug is True:
-            print('Hovering {} seconds...'.format(delay))
-        # Log entry for delay added
-        self.log.append(Stats('wait', len(self.log)))
-        for i in range(0, delay):
-            if self.stabiliser.movingRight == True:
-                self.left(20)
-            if self.stabiliser.movingLeft == True:
-                self.right(20)
-            time.sleep(1)
-
-
 
 
     def wait(self, delay: float):
@@ -170,6 +135,14 @@ class Tello:
         self.video_thread.start()
 
     def streamoff(self):
+        if not self.faces.images_to_be_saved.empty():
+            for n in range(self.faces.images_to_be_saved.qsize()):
+                img = self.faces.images_to_be_saved.get()[1]
+                path = self.faces.images_to_be_saved.get()[0]
+                cv2.imwrite(path, img)
+                print("Image writtem" + n)
+        print("Image writing finished")
+
         self.stream_state = False
         self.send_command('streamoff')
 
