@@ -3,9 +3,8 @@ import threading
 import time
 import cv2
 from easytello2.stats import Stats
-import numpy as np
-import queue
 from easytello2.EnhancedFeatures.FacialRecognition.facial_rec import Facial_Rec
+from easytello2.EnhancedFeatures.ActionRecognition.action_rec import Action_rec
 
 class Tello:
     def __init__(self, tello_ip: str='192.168.10.1', debug: bool=True):
@@ -38,6 +37,9 @@ class Tello:
         #Default facial rec to false
         self.face_rec = False
         self.faces = Facial_Rec()
+
+        #Action Recognition
+        #self.action_rec = Action_rec()
 
         # Setting Tello to command mode
         self.command()
@@ -89,9 +91,7 @@ class Tello:
                 if self.face_rec:
                     self.faces.scan_faces(self.last_frame)
 
-                else:
-                    pass
-
+                #self.action_rec.detect_hands(self.last_frame)
                 #Show video feed
                 cv2.imshow('DJI Tello', self.last_frame)
 
@@ -135,13 +135,13 @@ class Tello:
         self.video_thread.start()
 
     def streamoff(self):
-        if not self.faces.images_to_be_saved.empty():
-            for n in range(self.faces.images_to_be_saved.qsize()):
-                img = self.faces.images_to_be_saved.get()[1]
-                path = self.faces.images_to_be_saved.get()[0]
-                cv2.imwrite(path, img)
-                print("Image writtem" + n)
-        print("Image writing finished")
+        # if not self.faces.images_to_be_saved.empty():
+        #     for n in range(self.faces.images_to_be_saved.qsize()):
+        #         img = self.faces.images_to_be_saved.get()[1]
+        #         path = self.faces.images_to_be_saved.get()[0]
+        #         cv2.imwrite(path, img)
+        #         print("Image writtem" + n)
+        # print("Image writing finished")
 
         self.stream_state = False
         self.send_command('streamoff')
